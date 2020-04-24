@@ -12,7 +12,7 @@ from sklearn.model_selection import KFold
 from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.utils import Parallel, delayed
-
+from keras.utils import to_categorical
 
 class EmbeddingImputer(BaseEstimator, TransformerMixin):
     """
@@ -38,14 +38,15 @@ class EmbeddingImputer(BaseEstimator, TransformerMixin):
         
         param DataFrame X: input/training data
         """
+        self.n_classes = len(X[self.y_lbl].unique())
         self.model = self._build_model(X)
         train_df, test_df, y_tr, y_tst = self.data_model(X)
         history = self.model.fit(
         x=train_df,
-        y=y_tr.values,
-        validation_data=(test_df, y_tst.values),
-        batch_size=512,
-        epochs=1,
+        y=y_tr,
+        validation_data=(test_df, y_tst),
+        batch_size=32,
+        epochs=5,
         verbose=self.verbose)
         #callbacks=[es, mc, TQDMNotebookCallback(leave_inner=True, leave_outer=True)])
         
@@ -111,8 +112,12 @@ class EmbeddingImputer(BaseEstimator, TransformerMixin):
         def get_keras_data(dataset, cat_vars):
             return {cat : np.array(dataset[cat]) for cat in cat_vars}
         
-        return (get_keras_data(train, self.cols), get_keras_data(test, self.cols),
-                train[self.y_lbl], test[self.y_lbl])
+        if self.classif:
+            return (get_keras_data(train, self.cols), get_keras_data(test, self.cols),
+                to_categorical(train[self.y_lbl]), to_categorical(test[self.y_lbl]))
+        else:
+            return (get_keras_data(train, self.cols), get_keras_data(test, self.cols),
+                    train[self.y_lbl], test[self.y_lbl])
         
     
     def _build_model(self, X):
@@ -140,7 +145,7 @@ class EmbeddingImputer(BaseEstimator, TransformerMixin):
         z = Dropout(0.2)(emb_layer)
         
         if self.classif:
-            z = Dense(len(self.cols), activation='softmax')(z)
+            z = Dense(self.n_classes, activation='softmax')(z)
         else:
             z = Dense(1)(z)
 
@@ -247,9 +252,13 @@ class MeanEncoding(BaseEstimator, TransformerMixin):
                 # train and test are encode with different values
                 X[col] = X[col].replace(self.code_map[col])
                 X[col].fillna(self.default_map, inplace=True)
+                X[col][X[col].apply(lambda x: isinstance(x, str))] = self.default_map 
+                X[col] = X[col].astype(float)
             else:
                 X.loc[:, col] = self.impact_coded[col]
                 X[col].fillna(self.default_map, inplace=True)
+                X[col][X[col].apply(lambda x: isinstance(x, str))] = self.default_map 
+                X[col] = X[col].astype(float)
                 self.trained_cols[col] = True
                 
         return X

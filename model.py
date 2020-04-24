@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.pipeline import Pipeline
 
 # toy data
-my_data = np.array([['65-69', 'M', 15178.68],
+reg_data = np.array([['65-69', 'M', 15178.68],
 			       ['60-64', 'M', 200.0],
 			       ['30-34', 'M', 285.0],
 			       ['45-49', 'F', 99.32],
@@ -35,7 +35,41 @@ my_data = np.array([['65-69', 'M', 15178.68],
 			       ['40-44', 'M', 3529.0],
 			       ['40-44', 'M', 4050.0]], dtype=object)
 
-df = pd.DataFrame(my_data, columns=['age', 'gender', 'target'])
+
+# toy data
+class_data = np.array([['65-69', 'M', 1],
+			       ['60-64', 'M', 1],
+			       ['30-34', 'M', 0],
+			       ['45-49', 'F', 0],
+			       ['30-34', 'M', 0],
+			       ['45-49', 'F', 1],
+			       ['50-54', 'F', 1],
+			       ['60-64', 'F', 1],
+			       ['65-69', 'M', 2],
+			       ['55-59', 'M', 1],
+			       ['45-49', 'F', 0],
+			       ['30-34', 'M', 0],
+			       ['50-54', 'F', 1],
+			       ['55-59', 'F', 2],
+			       ['45-49', 'M', 1],
+			       ['55-59', 'F', 1],
+			       ['60-64', 'M', 0],
+			       ['50-54', 'F', 0],
+			       ['50-54', 'F', 2],
+			       ['45-49', 'F', 2],
+			       ['40-44', 'F', 0],
+			       ['45-49', 'F', 2],
+			       ['55-59', 'F', 1],
+			       ['55-59', 'F', 1],
+			       ['50-54', 'M', 2],
+			       ['55-59', 'M', 1],
+			       ['45-49', 'F', 2],
+			       ['30-34', 'M', 2],
+			       ['40-44', 'M', 1],
+			       ['40-44', 'M', 1]], dtype=object)
+
+
+df = pd.DataFrame(reg_data, columns=['age', 'gender', 'target'])
 
 
 cols_nnemb = ['age']
@@ -45,7 +79,7 @@ pipe_meanenc = Pipeline([('selector', ColumnSelector(key=cols_mean + ['target'])
 
 
 pipe_nnemb = Pipeline([('selector', ColumnSelector(key=cols_nnemb + ['target'])),
-                       ('mean_enc', EmbeddingImputer(cols_nnemb, False, 1))])
+                       ('mean_enc', EmbeddingImputer(cols_nnemb, classif=False, verbose=1))])
 
 
 feats = PandasFeatureUnion([('pipenn', pipe_meanenc),
