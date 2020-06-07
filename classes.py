@@ -328,41 +328,29 @@ class DummyTransformer(BaseEstimator, TransformerMixin):
         X = pd.Series(X)
         X = pd.concat([X, self.keys])
         return pd.get_dummies(X, **self.kwargs)[self.r_keys][:-len(self.keys)]
-    
+
 class PandasFeatureUnion(_BaseComposition, TransformerMixin):
     """
-    Preserves pandas DataFrame type. Applies transformers and \
-    concatenates output.
-
-    param list transformer_list: List of tuples ("name", \
-    sklearn_transformer) i.e. transformer must have ``fit_transform`` method
-    param int n_jobs: number of processors to use
+    Concatenate featues from the Pipeline
     """
 
-    def __init__(self, transformer_list, n_jobs=1):
+    def __init__(self, transformer_list, custom_idx_col=None):
         self.transformer_list = transformer_list
-        self.n_jobs = n_jobs
-
-    @staticmethod
-    def _fit_one_transformer(transformer, X, y):
-        label, transformer_ = transformer
-        return label, transformer_.fit(X, y)
-
-    @staticmethod
-    def _transform_one(transformer, X, y):
-        _, transformer_ = transformer
-        return transformer_.transform(X)
+        self.custom_idx_col = custom_idx_col
 
     def fit(self, X, y=None):
-
-        self.transformer_list = Parallel(n_jobs=self.n_jobs)(
-            delayed(self._fit_one_transformer)(trans, X, y)
-            for trans in self.transformer_list)
+        for label, transformer in self.transformer_list:
+            transformer.fit(X)
         return self
 
     def transform(self, X, y=None):
-        Xout = Parallel(n_jobs=self.n_jobs)(
-            delayed(self._transform_one)(trans, X, y)
-            for trans in self.transformer_list)
-        Xout = pd.concat(Xout, axis=1)
-        return Xout.loc[:,~Xout.columns.duplicated()]
+        if self.custom_idx_col == None:
+            X = X.reset_index(drop=True)
+            Xout = pd.DataFrame(index=X.index)
+        else:
+            Xout = pd.DataFrame(index=X[self.custom_idx_col].unique().tolist())
+
+        for label, transformer in self.transformer_list:
+            Xout = Xout.join(transformer.transform(X))
+        self.feature_names_ = Xout.columns
+        return Xout
